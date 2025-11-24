@@ -10,6 +10,8 @@ A reusable GitHub Action for checking broken links on websites using [muffet](ht
 - Fast recursive link checking using muffet
 - Configurable timeouts, connection limits, and exclusion patterns
 - Browser-like headers to avoid bot detection
+- **Wait-for-ready**: Wait for deployments to complete before checking
+- **Content verification**: Wait for specific content (e.g., commit hash) to appear
 - Detailed reports in GitHub Step Summary
 - Support for GitHub Pages, ReadTheDocs, and any website
 
@@ -22,6 +24,8 @@ A reusable GitHub Action for checking broken links on websites using [muffet](ht
 ```
 
 ## Inputs
+
+### Link Checking Options
 
 | Input | Required | Default | Description |
 |-------|----------|---------|-------------|
@@ -36,6 +40,15 @@ A reusable GitHub Action for checking broken links on websites using [muffet](ht
 | `skip-tls-verification` | No | `false` | Skip TLS certificate verification |
 | `fail-on-error` | No | `true` | Fail workflow on broken links |
 | `verbose` | No | `false` | Show all URLs, not just failures |
+
+### Wait-for-Ready Options
+
+| Input | Required | Default | Description |
+|-------|----------|---------|-------------|
+| `wait-for-url` | No | `false` | Wait for URL to return HTTP 200 before checking |
+| `wait-for-content` | No | `` | Regex pattern to match in page content (implies `wait-for-url`) |
+| `wait-timeout` | No | `300` | Maximum time to wait in seconds (5 minutes) |
+| `wait-interval` | No | `5` | Time between retry attempts in seconds |
 
 ## Outputs
 
@@ -64,17 +77,49 @@ jobs:
           url: 'https://your-site.com'
 ```
 
-### With Custom Exclusions
+### Wait for Deployment
+
+Wait for a URL to be accessible before checking links:
 
 ```yaml
 - uses: mithro/linkcheck-action@main
   with:
-    url: 'https://your-site.com'
-    exclude: |
-      .*mailto:.*
-      .*linkedin\.com.*
-      .*twitter\.com.*
-      .*github\.com/.*/(issues|pulls).*
+    url: 'https://preview.your-site.com/pr-${{ github.event.pull_request.number }}/'
+    wait-for-url: 'true'
+    wait-timeout: '600'  # Wait up to 10 minutes
+```
+
+### Wait for Specific Content (Commit Hash Verification)
+
+Wait for the deployed content to contain the current commit hash:
+
+```yaml
+- uses: mithro/linkcheck-action@main
+  with:
+    url: 'https://preview.your-site.com/pr-${{ github.event.pull_request.number }}/'
+    wait-for-content: 'git commit: ${{ github.sha }}'
+    wait-timeout: '600'
+```
+
+This is useful for verifying that CDN caches have been invalidated and you're checking the latest deployment.
+
+### ReadTheDocs Preview with Wait
+
+```yaml
+name: Link Check PR Preview
+on:
+  pull_request:
+
+jobs:
+  linkcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: mithro/linkcheck-action@main
+        with:
+          url: 'https://project--${{ github.event.pull_request.number }}.org.readthedocs.build/'
+          wait-for-url: 'true'
+          wait-timeout: '600'
+          skip-tls-verification: 'true'
 ```
 
 ### GitHub Pages After Deployment
@@ -94,26 +139,20 @@ jobs:
       - uses: mithro/linkcheck-action@main
         with:
           url: 'https://username.github.io/repo/'
+          wait-for-url: 'true'
 ```
 
-### ReadTheDocs Preview
+### With Custom Exclusions
 
 ```yaml
-name: Link Check PR Preview
-on:
-  pull_request:
-
-jobs:
-  linkcheck:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Wait for build
-        run: sleep 120
-
-      - uses: mithro/linkcheck-action@main
-        with:
-          url: 'https://project--${{ github.event.pull_request.number }}.org.readthedocs.build/'
-          skip-tls-verification: 'true'
+- uses: mithro/linkcheck-action@main
+  with:
+    url: 'https://your-site.com'
+    exclude: |
+      .*mailto:.*
+      .*linkedin\.com.*
+      .*twitter\.com.*
+      .*github\.com/.*/(issues|pulls).*
 ```
 
 ### Non-Blocking Check
@@ -137,6 +176,7 @@ jobs:
   id: linkcheck
   with:
     url: 'https://preview.site.com/pr-${{ github.event.pull_request.number }}/'
+    wait-for-url: 'true'
     fail-on-error: 'false'
 
 - name: Comment on PR

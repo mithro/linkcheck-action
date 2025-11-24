@@ -89,6 +89,31 @@ jobs:
           echo "Success output: ${{ steps.linkcheck.outputs.success }}"
           echo "This step should always run regardless of link check results"
 
+  test-wait-for-url:
+    name: Test wait-for-url feature
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run link check with wait-for-url
+        id: linkcheck
+        uses: ./
+        with:
+          url: 'https://example.com'
+          wait-for-url: 'true'
+          wait-timeout: '30'
+          wait-interval: '2'
+          fail-on-error: 'true'
+
+      - name: Verify success
+        run: |
+          if [[ "${{ steps.linkcheck.outputs.success }}" != "true" ]]; then
+            echo "Expected success=true but got ${{ steps.linkcheck.outputs.success }}"
+            exit 1
+          fi
+          echo "Wait-for-url test passed"
+
   test-github-pages-fixtures:
     name: Test against GitHub Pages fixtures
     runs-on: ubuntu-latest
@@ -98,11 +123,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Test working links fixture
+      - name: Test working links fixture with wait
         id: working
         uses: ./
         with:
           url: 'https://mithro.github.io/linkcheck-action/working/'
+          wait-for-url: 'true'
           fail-on-error: 'true'
 
       - name: Test broken links fixture (should fail)
