@@ -58,7 +58,9 @@ set -e
 echo "::endgroup::"
 
 # Count broken links (lines that start with a URL followed by error)
-BROKEN_COUNT=$(grep -c "^http" "$REPORT_PATH" 2>/dev/null || echo "0")
+# Note: grep -c returns 1 when no matches found, but still outputs "0"
+# We need to capture the output regardless of exit code
+BROKEN_COUNT=$(grep -c "^http" "$REPORT_PATH" 2>/dev/null) || BROKEN_COUNT=0
 
 # Set outputs
 echo "report_path=$REPORT_PATH" >> "$GITHUB_OUTPUT"
