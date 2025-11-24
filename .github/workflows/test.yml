@@ -1,0 +1,122 @@
+name: Test Action
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  test-working-links:
+    name: Test with working links
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run link check on example.com
+        id: linkcheck
+        uses: ./
+        with:
+          url: 'https://example.com'
+          fail-on-error: 'true'
+
+      - name: Verify success
+        run: |
+          if [[ "${{ steps.linkcheck.outputs.success }}" != "true" ]]; then
+            echo "Expected success=true but got ${{ steps.linkcheck.outputs.success }}"
+            exit 1
+          fi
+          echo "Link check passed as expected"
+
+  test-custom-exclusions:
+    name: Test custom exclusion patterns
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run link check with custom exclusions
+        id: linkcheck
+        uses: ./
+        with:
+          url: 'https://example.com'
+          exclude: |
+            .*mailto:.*
+            .*linkedin\.com.*
+            .*twitter\.com.*
+          fail-on-error: 'true'
+
+      - name: Verify outputs exist
+        run: |
+          echo "Success: ${{ steps.linkcheck.outputs.success }}"
+          echo "Broken count: ${{ steps.linkcheck.outputs.broken-links-count }}"
+          echo "Report path: ${{ steps.linkcheck.outputs.report-path }}"
+
+  test-verbose-mode:
+    name: Test verbose output
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run link check in verbose mode
+        uses: ./
+        with:
+          url: 'https://example.com'
+          verbose: 'true'
+          fail-on-error: 'false'
+
+  test-no-fail-mode:
+    name: Test non-failing mode
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run link check without failing
+        id: linkcheck
+        uses: ./
+        with:
+          url: 'https://example.com'
+          fail-on-error: 'false'
+
+      - name: Check that outputs are set
+        run: |
+          echo "Success output: ${{ steps.linkcheck.outputs.success }}"
+          echo "This step should always run regardless of link check results"
+
+  test-github-pages-fixtures:
+    name: Test against GitHub Pages fixtures
+    runs-on: ubuntu-latest
+    # Only run if Pages is deployed
+    if: github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Test working links fixture
+        id: working
+        uses: ./
+        with:
+          url: 'https://mithro.github.io/linkcheck-action/working/'
+          fail-on-error: 'true'
+
+      - name: Test broken links fixture (should fail)
+        id: broken
+        uses: ./
+        continue-on-error: true
+        with:
+          url: 'https://mithro.github.io/linkcheck-action/broken/'
+          fail-on-error: 'true'
+
+      - name: Verify broken links were detected
+        run: |
+          if [[ "${{ steps.broken.outputs.success }}" == "true" ]]; then
+            echo "ERROR: Expected broken links to be detected but got success=true"
+            exit 1
+          fi
+          echo "Broken links correctly detected"

@@ -1,0 +1,97 @@
+name: 'Link Check'
+description: 'Check for broken links on a website using muffet'
+author: 'mithro'
+
+branding:
+  icon: 'link'
+  color: 'blue'
+
+inputs:
+  url:
+    description: 'URL to check for broken links'
+    required: true
+  timeout:
+    description: 'HTTP request timeout in seconds'
+    required: false
+    default: '30'
+  max-connections:
+    description: 'Maximum number of concurrent connections'
+    required: false
+    default: '10'
+  max-connections-per-host:
+    description: 'Maximum connections per host'
+    required: false
+    default: '5'
+  buffer-size:
+    description: 'Buffer size in bytes'
+    required: false
+    default: '16384'
+  exclude:
+    description: 'Newline-separated list of regex patterns to exclude'
+    required: false
+    default: |
+      .*mailto:.*
+      .*linkedin\.com.*
+  include-browser-headers:
+    description: 'Include Chrome-like browser headers'
+    required: false
+    default: 'true'
+  max-redirects:
+    description: 'Maximum number of redirects to follow'
+    required: false
+    default: '10'
+  skip-tls-verification:
+    description: 'Skip TLS certificate verification'
+    required: false
+    default: 'false'
+  fail-on-error:
+    description: 'Fail the workflow if broken links are found'
+    required: false
+    default: 'true'
+  verbose:
+    description: 'Show all checked URLs, not just failures'
+    required: false
+    default: 'false'
+
+outputs:
+  success:
+    description: 'Whether all links are valid (true/false)'
+    value: ${{ steps.check.outputs.success }}
+  broken-links-count:
+    description: 'Number of broken links found'
+    value: ${{ steps.check.outputs.broken_links_count }}
+  report-path:
+    description: 'Path to the detailed report file'
+    value: ${{ steps.check.outputs.report_path }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Install muffet
+      shell: bash
+      run: |
+        echo "::group::Installing muffet"
+        MUFFET_VERSION="2.10.7"
+        MUFFET_URL="https://github.com/raviqqe/muffet/releases/download/v${MUFFET_VERSION}/muffet_linux_amd64.tar.gz"
+
+        wget -qO- "$MUFFET_URL" | tar -xzf - -C /tmp
+        sudo mv /tmp/muffet /usr/local/bin/
+        muffet --version
+        echo "::endgroup::"
+
+    - name: Run link check
+      id: check
+      shell: bash
+      env:
+        INPUT_URL: ${{ inputs.url }}
+        INPUT_TIMEOUT: ${{ inputs.timeout }}
+        INPUT_MAX_CONNECTIONS: ${{ inputs.max-connections }}
+        INPUT_MAX_CONNECTIONS_PER_HOST: ${{ inputs.max-connections-per-host }}
+        INPUT_BUFFER_SIZE: ${{ inputs.buffer-size }}
+        INPUT_EXCLUDE: ${{ inputs.exclude }}
+        INPUT_INCLUDE_BROWSER_HEADERS: ${{ inputs.include-browser-headers }}
+        INPUT_MAX_REDIRECTS: ${{ inputs.max-redirects }}
+        INPUT_SKIP_TLS_VERIFICATION: ${{ inputs.skip-tls-verification }}
+        INPUT_FAIL_ON_ERROR: ${{ inputs.fail-on-error }}
+        INPUT_VERBOSE: ${{ inputs.verbose }}
+      run: ${{ github.action_path }}/scripts/check-links.sh

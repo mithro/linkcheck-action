@@ -1,0 +1,16 @@
+# Basic usage example
+name: Link Check
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 0 * * 0'  # Weekly on Sunday
+
+jobs:
+  linkcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: mithro/linkcheck-action@main
+        with:
+          url: 'https://your-site.com'

@@ -1,0 +1,22 @@
+# Example for checking ReadTheDocs preview builds
+name: Link Check ReadTheDocs Preview
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  linkcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for ReadTheDocs build
+        run: sleep 120  # Wait 2 minutes for build
+
+      - uses: mithro/linkcheck-action@main
+        with:
+          url: 'https://your-project--${{ github.event.pull_request.number }}.org.readthedocs.build/'
+          skip-tls-verification: 'true'
+          exclude: |
+            .*mailto:.*
+            .*linkedin\.com.*
+            .*readthedocs\.org.*
